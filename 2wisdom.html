@@ -3,15 +3,16 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.15.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/1.3.8/FileSaver.min.js"></script>
 <!-- 
-    문서 버전: v1.0.03
-    + 1.0.01 : 기능 구현
-    + 1.0.02 : 마지막으로 입력한 값 + 마지막으로 설정된 값 cookie 저장로직 추가 (cookie => localstorage)
-    + 1.0.03 : CODE 값 STRING 으로 찍히는 문자를 NUMBER로 변경
- -->
+    문서 버전: v1.0.04
+    + v1.0.01 | 2023-06-27 : 기능 구현
+    + v1.0.02 | 2023-06-28 : 마지막으로 입력한 값 + 마지막으로 설정된 값 cookie 저장로직 추가 (cookie => localstorage)
+    + v1.0.03 | 2023-06-29 : CODE 값 STRING 으로 찍히는 문자를 NUMBER로 변경
+    + v1.0.04 | 2023-07-01 : 엑셀 sheet의 개수가 여러 개일 때, 에러 처리 
+-->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>파일 업로드 v1.0.03</title>
+    <title>파일 업로드 v1.0.04</title>
 </head>
 <style>
     pre {
@@ -41,6 +42,11 @@
     .error {
         color:red;
     }
+
+    .not-required {
+        color:#0188ff;
+    }
+
     .wrap {
         display:grid;
         padding: 7px 0;
@@ -97,27 +103,37 @@
     .bg-title{
         background-color: #ededed;
     }
+    
+    input[name=readSheetName]::-ms-input-placeholder { /* 인터넷 익스플로러 */
+        color:#0188ff;
+        font-weight: bold;
+    }
+
+    input[name=readSheetName]::placeholder {
+        color:#0188ff;
+        font-weight: bold;
+    }
 </style>
 <body>
     <pre>
-v1.0.03 | 2023-06-29
+v1.0.04 | 2023-07-01
 
 <b class="bg-title">[ 확 인 사 항 ]</b>
-
+<div style="line-height: 1.35;">
     0. 엑셀 파일이 열린 상태에서 작업할 경우 멈춤 현상이 발생 할 수 있습니다. <b class="warning">그럴 땐, 엑셀파일 종료 후 이용해 주세요!</b>
-    1. <b>시작 시리즈 코드</b>랑 <b>시작 상품 코드</b>는 <b>필수 값</b> 입니다.!
+    1. <b class="required">*</b> 처리된 값들은 <b>필수값</b> 입니다.! (시리즈코드, 상품코드, 엑셀파일)
     2. 작업하실 때 업로드 하는 엑셀 파일의 컬럼값을 <b>'회차명', '제목명'</b> 으로 변경해주실 경우, 다운로드 받는 파일 에서도 해당 데이터를 확인 하실 수 있습니다. 
        (<b class="warning">※제목명 필수</b>, 회차명은 단순 확인용입니다.)
     3. <b>시리즈 코드, 상품코드, 업로드 코드, 제목명</b>, 회차명만 엑셀에 출력합니다. (현재 컬럼값들이 일정한것 같지 않아 전체 엑셀을 복사 하지 않고, 일부 데이터만 변경하여 노출하였습니다.) 
-    4. 같은 파일을 업로드 하는 경우엔 '삭제' 버튼 클릭 후 이용해 주세요.
-
-
+    4. 엑셀 내부에 시트가 여러 개인 경우, 기본적으론 <b>'Sheet1'</b>시트를 읽고있습니다. <b>다른 시트를 읽고 싶으신 경우 [<span class="not-required">sheet명</span>] 을 입력하여 수정</b>해주세요
+    5. 같은 파일을 업로드 하는 경우엔 '삭제' 버튼 클릭 후 이용해 주세요.
+</div>
 <b class="bg-title">[코드 생성 규칙]</b>
 
     series_code  : ABC + 00001             (뒤에 LPAD 처리된 시퀀스 5자리 수 숫자)
     upload_code  : 0001                    (회차 번호, 뒤에 LPAD 처리된 시퀀스 4자리 수 숫자)
     product_code : AA + 0001 + upload_code (16진수 두자리 + 뒤에 LPAD 처리된 시퀀스 4자리 수 숫자 + upload_code)
-   
+
 
 <b class="bg-title">[   입 력 창   ]</b>
 </pre>
@@ -158,15 +174,27 @@ v1.0.03 | 2023-06-29
     </div>
 </div>
 
-<pre>
-    <span class="required">*</span>EXCEL 파일       : <button class="clear-btn" onClick="document.getElementById('file').value=''">삭제</button> <input style="height: 24px" id="file" type="file" onchange="excelUpload(event)" accept=".xls,.xlsx">
-</pre>
+<div class="wrap">
+    <div class="wrap-input">&nbsp;&nbsp;EXCEL 파일&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;
+        <input style="width:270px;" id="readSheetName" name="readSheetName" type="text">&nbsp;
+        <button class="clear-btn" onClick="document.getElementById('file').value=''">삭제</button>&nbsp;
+        <span class="required">*</span>&nbsp;<input style="height: 24px" id="file" type="file" onchange="excelUpload(event)" accept=".xls,.xlsx">
+    </div>
+</div>
+
+<!-- <pre>
+    <span class="required">*</span>EXCEL 파일       : <button class="clear-btn" onClick="document.getElementById('file').value=''">삭제</button>
+    <input style="height: 24px" id="file" type="file" onchange="excelUpload(event)" accept=".xls,.xlsx">
+</pre> -->
     
     <hr style="margin-top:30px">
     <pre>
         
 <b class="bg-title">[ 엑셀 파일 정보 ]</b>
 
+    엑셀 파일 명  : <span id="excelFileName">없음</span>
+    엑셀 시트 명  : <span id="excelSheetName">없음</span>
+    
     처리 예정 건수(excel row) : <span id="excelRowCntText">0</span>
     처리 건수 : <span id="allCntText">0</span>
     컨텐츠 수 : <span id="contentCntText">0</span>
@@ -190,18 +218,14 @@ v1.0.03 | 2023-06-29
     window.onload = function() {
         const placeholder1 = "max값이 99999가 넘을 수 있는 경우 앞에 글자를 변경해주세요";
         const placeholder2 = "max값이   9999가 넘을 수 있는 경우 앞에 글자를 변경해주세요";
+        const placeholder3 = "sheet명";
         document.getElementById("series").placeholder = placeholder1;
         document.getElementById("product").placeholder = placeholder2;
+        document.getElementById("readSheetName").placeholder = placeholder3;
 
         loadLocalStorage();
     }
-    // loadCookies
-    function loadLocalStorage(){
-        updateDocumentText("oldSeries", getLocalStorageValue('oldSeries', initCodeValue));
-        updateDocumentText("newSeries", getLocalStorageValue('newSeries', initCodeValue));
-        updateDocumentText("oldProduct", getLocalStorageValue('oldProduct', initCodeValue));
-        updateDocumentText("newProduct", getLocalStorageValue('newProduct', initCodeValue));
-    }
+
 
     function paste(type){
         if(type === "oldSeries" || type === "newSeries"){
@@ -211,7 +235,8 @@ v1.0.03 | 2023-06-29
             document.getElementById("product").value = document.getElementById(type).innerText;
         }
     }
-    // setCookie
+
+    // setLocalStorage
     function setLocalStorageValue(name, value){
         try{
             // var date = new Date();
@@ -220,29 +245,7 @@ v1.0.03 | 2023-06-29
             localStorage.setItem(name, value);
             updateDocumentText(name, value ? value : initCodeValue);
         }catch(e){
-            console.log("INPUT : ", name, value, period);
             console.log(e);
-        }
-    }
-
-    // getCookie
-    function getLocalStorageValue(name, defaultValue){
-        return localStorage.getItem(name) ? localStorage.getItem(name) : defaultValue;
-
-        // let matches = document.cookie.match(new RegExp(
-        //     "(?:^|; )" + name.replace(/([\.$?*|{}\(\)\[\]\\\/\+^])/g, '\\$1') + "=([^;]*)"
-        // ));
-        // return matches ? decodeURIComponent(matches[1]) : defaultValue;
-
-    }
-    // initCookie
-    function initLocalStorage(type){
-        if(type === "series"){
-            setLocalStorageValue("oldSeries", initCodeValue)
-            setLocalStorageValue("newSeries", initCodeValue)
-        }else if(type === "product") {
-            setLocalStorageValue("oldProduct", initCodeValue)
-            setLocalStorageValue("newProduct", initCodeValue)
         }
     }
 
@@ -290,6 +293,11 @@ v1.0.03 | 2023-06-29
         let contentName = "";
 
         let warningMessage = "";
+        let readSheetName = document.getElementById("readSheetName").value ? document.getElementById("readSheetName").value : "Sheet1";
+        let readSheetNames = [];
+        let readSheetCurrName = "";
+
+        let excelNameElement = "";
 
         fileReader.readAsArrayBuffer(file);
         fileReader.onload = (e) => {
@@ -297,11 +305,12 @@ v1.0.03 | 2023-06-29
                 if(!e.target) return;
 
                 
+                updateDocumentText("excelFileName","없음");
+                updateDocumentText("excelSheetName","없음");
                 updateDocumentText("errorText","");
                 updateDocumentText("allCntText","0");           // 화면 노출용 (처리 건수)
                 updateDocumentText("contentCntText","0");       // 화면 노출용 (컨텐츠 수)
                 appendDocumentElement("contentNameText",[]);    // 화면 노출용 (처리된 작품 명)
-
                 updateDocumentText("currStatusText","엑셀 파일 READ 준비중");
                 // const bufferArray = e.target.result;
                 
@@ -323,26 +332,56 @@ v1.0.03 | 2023-06-29
 
                 // 업로드 한 엑셀 파일 read
                 updateDocumentText("currStatusText","엑셀 파일 READIND...");
-                workbook.SheetNames.forEach(function(item, index, array){
-                    EXCEL_JSON = XLSX.utils.sheet_to_json(workbook.Sheets[item]);
+                workbook.SheetNames.some((item, index, array) => {
+                    readSheetNames = array;
+                    if(array.length > 1){
+                        readSheetCurrName = readSheetName;
+                        if(array.indexOf(readSheetName) > -1){
+                            EXCEL_JSON = XLSX.utils.sheet_to_json(workbook.Sheets[readSheetName]);
+                            
+                            return true;
+                        }else{
+                            warningMessage = `엑셀 파일에 '${readSheetName}' 이름의 시트가 없습니다.\n`
+                                                + `\t\t    엑셀 내부의 시트 : [${readSheetNames && readSheetNames.toString()}] (숨김처리가 되어있을 수 있습니다.)\n\n`
+                                                + `\t\t    아래 3가지 방법 중 하나를 적용 해주세요.\n\n`
+                                                
+                                                + `\t\t    1. [파일 선택] 버튼의 좌측 입력창에 [${readSheetNames && readSheetNames.toString()}] 중 하나의 시트명을 입력해주세요.\n`
+                                                + `\t\t    2. 대상 시트의 이름을 '${readSheetName}' 로 변경\n`
+                                                + `\t\t    3. 시트의 개수를 1개로 변경\n`
+                                                
+                            throw new Error(warningMessage);
+                            return false;
+                        }
+                    }else{
+                        readSheetCurrName = item;
+                        EXCEL_JSON = XLSX.utils.sheet_to_json(workbook.Sheets[item]);
+                        return true;
+                    }
                 })
+                
+                updateDocumentText("excelFileName",`${file.name}`);
+                updateDocumentText("excelSheetName",`${readSheetCurrName}`);
+                if(warningMessage){
+                    throw new Error(warningMessage);
+                }
                 excelRowCnt = EXCEL_JSON.length;    // excel raw 길이
                 updateDocumentText("excelRowCntText", excelRowCnt); 
                 updateDocumentText("currStatusText","엑셀 파일 READ 끝");
 
                 const writeData = EXCEL_JSON.map((item, index) => {
                     if(!item.제목명){
-                        warningMessage = "엑셀에 '제목명' 컬럼이 존재하지 않습니다. 다시확인해주세요";
+                        warningMessage = `엑셀 시트 '${readSheetCurrName}'에 '제목명' 컬럼이 존재하지 않습니다. 엑셀 파일을 다시확인해주세요\n`
+                                        + `\t\t    엑셀 내부의 시트 : [${readSheetNames && readSheetNames.toString()}]`;
                         throw new Error(warningMessage);
                     }
 
                     if(index === 0){    // row 가 시작일떄
+                        contentCnt++;   // 처리하는 content 개수 + 1 (화면 노출 용)
+                        excelNameElement = seriesPrefix + lpad(`${seriesCode}`, 5 , "0");
+                        contentNameText.innerHTML = "";
                         setLocalStorageValue("oldSeries", seriesCode)
                         setLocalStorageValue("oldProduct", productCode)
-
-                        contentNameText.innerHTML = "";
                         updateDocumentText("currStatusText","엑셀 파일 CONVERTING...");
-                        contentCnt++;   // 처리하는 content 개수 + 1 (화면 노출 용)
                     }else if (excelRowCnt === index + 1){   // row 가 마지막일때
                         setLocalStorageValue("newSeries", seriesCode + 1)
                         setLocalStorageValue("newProduct", productCode + 1)
@@ -364,7 +403,6 @@ v1.0.03 | 2023-06-29
                     let textUploadCode = lpad(`${uploadCode}` , 4 , "0")                    // upload_code : 00001 (뒤에 LPAD 처리된 시퀀스 4자리 수 숫자)
                     let textProductCode = productPrefix + lpad(`${productCode}` , 4 , "0") + textUploadCode;     // product_code : AA0001 + upload_code (16진수 두자리 + 뒤에 LPAD 처리된 시퀀스 4자리 수 숫자 + upload_code)
                     
-
                     filename = item.제목명;  // 처리한 제목 명을 기존 변수에 업데이트
                     updateDocumentText("allCntText",allCnt++);  // 처리중인 excel 개수 갱신
                     // return { "제목" : item.제목 , "TITLE" : item.TITLE , SERIES_CODE : textSeriesCode, PRODUCT_CODE : textProductCode, UPLOAD_CODE : textUploadCode}.values() ;
@@ -380,13 +418,13 @@ v1.0.03 | 2023-06-29
                 wb.Sheets["done"] = ws;                         // sheet를 생성했던 'done' sheet 에 붙여넣기
                 var wbout = XLSX.write(wb, {bookType: 'xlsx' , type: 'binary'});    // 생성한 workbook(sheet) 
 
-                saveAs(new Blob([s2ab(wbout)],{type:"application/octet-stream"}), `2wisdom_${getTimestamp()}.xlsx`);
+                saveAs(new Blob([s2ab(wbout)],{type:"application/octet-stream"}), `2wisdom_${excelNameElement}_${getTimestamp()}.xlsx`);
                 updateDocumentText("currStatusText","엑셀 파일 DOWNLOAD 처리 완료");
             }catch(e){
 
                 console.log(e);
-                updateDocumentText("errorText",`ERROR MESSAGE : ${e.message}`);
-                alert("처리 중 문제가 발생하였습니다.")
+                updateDocumentText("errorText",`\n    ERROR MESSAGE : ${e.message}`);
+                alert("처리 중 문제가 발생하였습니다.\n[확인] 버튼 클릭 후 에러 메시지를 확인해주세요.")
             }
         }
         
@@ -433,10 +471,41 @@ v1.0.03 | 2023-06-29
         d=new Date()
         return d.getFullYear()+
         pad(d.getMonth()+1)+
-        pad(d.getDate())+"_"+
+        pad(d.getDate())
+        // pad(d.getDate())+"_"+
         pad(d.getHours())+
-        pad(d.getMinutes())+
-        pad(d.getSeconds())
+        pad(d.getMinutes())
+        // +pad(d.getSeconds())
     }
+       
+    // loadLocalStorage
+    function loadLocalStorage(){
+        updateDocumentText("oldSeries", getLocalStorageValue('oldSeries', initCodeValue));
+        updateDocumentText("newSeries", getLocalStorageValue('newSeries', initCodeValue));
+        updateDocumentText("oldProduct", getLocalStorageValue('oldProduct', initCodeValue));
+        updateDocumentText("newProduct", getLocalStorageValue('newProduct', initCodeValue));
+    }
+
+    // getLocalStorage
+    function getLocalStorageValue(name, defaultValue){
+        return localStorage.getItem(name) ? localStorage.getItem(name) : defaultValue;
+
+        // let matches = document.cookie.match(new RegExp(
+        //     "(?:^|; )" + name.replace(/([\.$?*|{}\(\)\[\]\\\/\+^])/g, '\\$1') + "=([^;]*)"
+        // ));
+        // return matches ? decodeURIComponent(matches[1]) : defaultValue;
+
+    }
+    // initLocalStorage
+    function initLocalStorage(type){
+        if(type === "series"){
+            setLocalStorageValue("oldSeries", initCodeValue)
+            setLocalStorageValue("newSeries", initCodeValue)
+        }else if(type === "product") {
+            setLocalStorageValue("oldProduct", initCodeValue)
+            setLocalStorageValue("newProduct", initCodeValue)
+        }
+    }
+
 </script>
 </html>
