@@ -3,14 +3,15 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.15.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/1.3.8/FileSaver.min.js"></script>
 <!-- 
-    문서 버전: v1.0.02
-    + 마지막으로 입력한 값 + 마지막으로 설정된 값 cookie 저장로직 추가
-
+    문서 버전: v1.0.03
+    + 1.0.01 : 기능 구현
+    + 1.0.02 : 마지막으로 입력한 값 + 마지막으로 설정된 값 cookie 저장로직 추가 (cookie => localstorage)
+    + 1.0.03 : CODE 값 STRING 으로 찍히는 문자를 NUMBER로 변경
  -->
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>파일 업로드 v1.0.02</title>
+    <title>파일 업로드 v1.0.03</title>
 </head>
 <style>
     pre {
@@ -99,7 +100,7 @@
 </style>
 <body>
     <pre>
-v1.0.02 | 2023-06-28
+v1.0.03 | 2023-06-29
 
 <b class="bg-title">[ 확 인 사 항 ]</b>
 
@@ -128,7 +129,7 @@ v1.0.02 | 2023-06-28
     </div>
     <div class="wrap-button">
         <div class="clear">
-            <button class="clear-btn" onClick="initCookie('series')">초기화</button>
+            <button class="clear-btn" onClick="initLocalStorage('series')">초기화</button>
         </div>
         <div class="item">
             <span class="code-span" id="oldSeries"></span>&nbsp;<button style="width:90px" onClick="paste('oldSeries')">처리 이전값</button>
@@ -146,7 +147,7 @@ v1.0.02 | 2023-06-28
     </div>
     <div class="wrap-button">
         <div class="clear">
-            <button class="clear-btn" onClick="initCookie('product')">초기화</button>
+            <button class="clear-btn" onClick="initLocalStorage('product')">초기화</button>
         </div>
         <div class="item">
             <span class="code-span" id="oldProduct"></span>&nbsp;<button style="width:90px" onClick="paste('oldProduct')">처리 이전값</button>
@@ -192,14 +193,14 @@ v1.0.02 | 2023-06-28
         document.getElementById("series").placeholder = placeholder1;
         document.getElementById("product").placeholder = placeholder2;
 
-        loadCookies();
+        loadLocalStorage();
     }
-
-    function loadCookies(){
-        updateDocumentText("oldSeries", getCookie('oldSeries', initCodeValue));
-        updateDocumentText("newSeries", getCookie('newSeries', initCodeValue));
-        updateDocumentText("oldProduct", getCookie('oldProduct', initCodeValue));
-        updateDocumentText("newProduct", getCookie('newProduct', initCodeValue));
+    // loadCookies
+    function loadLocalStorage(){
+        updateDocumentText("oldSeries", getLocalStorageValue('oldSeries', initCodeValue));
+        updateDocumentText("newSeries", getLocalStorageValue('newSeries', initCodeValue));
+        updateDocumentText("oldProduct", getLocalStorageValue('oldProduct', initCodeValue));
+        updateDocumentText("newProduct", getLocalStorageValue('newProduct', initCodeValue));
     }
 
     function paste(type){
@@ -210,13 +211,13 @@ v1.0.02 | 2023-06-28
             document.getElementById("product").value = document.getElementById(type).innerText;
         }
     }
-
-    function setCookie(name, value, period){
+    // setCookie
+    function setLocalStorageValue(name, value){
         try{
-            var date = new Date();
-            date.setDate(date.getDate() + period ? period : 10000);
-            document.cookie = encodeURIComponent(name) + "=" + encodeURIComponent(value) + ";expires=" + date.toUTCString() +";path=/";
-
+            // var date = new Date();
+            // date.setDate(date.getDate() + period ? period : 10000);
+            // document.cookie = encodeURIComponent(name) + "=" + encodeURIComponent(value) + ";expires=" + date.toUTCString() +";path=/";
+            localStorage.setItem(name, value);
             updateDocumentText(name, value ? value : initCodeValue);
         }catch(e){
             console.log("INPUT : ", name, value, period);
@@ -224,20 +225,24 @@ v1.0.02 | 2023-06-28
         }
     }
 
-    function getCookie(name, defaultValue){
-        let matches = document.cookie.match(new RegExp(
-            "(?:^|; )" + name.replace(/([\.$?*|{}\(\)\[\]\\\/\+^])/g, '\\$1') + "=([^;]*)"
-        ));
-        return matches ? decodeURIComponent(matches[1]) : defaultValue;
-    }
+    // getCookie
+    function getLocalStorageValue(name, defaultValue){
+        return localStorage.getItem(name) ? localStorage.getItem(name) : defaultValue;
 
-    function initCookie(type){
+        // let matches = document.cookie.match(new RegExp(
+        //     "(?:^|; )" + name.replace(/([\.$?*|{}\(\)\[\]\\\/\+^])/g, '\\$1') + "=([^;]*)"
+        // ));
+        // return matches ? decodeURIComponent(matches[1]) : defaultValue;
+
+    }
+    // initCookie
+    function initLocalStorage(type){
         if(type === "series"){
-            setCookie("oldSeries", initCodeValue, 1000)
-            setCookie("newSeries", initCodeValue, 1000)
+            setLocalStorageValue("oldSeries", initCodeValue)
+            setLocalStorageValue("newSeries", initCodeValue)
         }else if(type === "product") {
-            setCookie("oldProduct", initCodeValue, 1000)
-            setCookie("newProduct", initCodeValue, 1000)
+            setLocalStorageValue("oldProduct", initCodeValue)
+            setLocalStorageValue("newProduct", initCodeValue)
         }
     }
 
@@ -246,8 +251,10 @@ v1.0.02 | 2023-06-28
         // let seriesCode = document.getElementById("series").value;
         // let productCode = document.getElementById("product").value;
 
-        let seriesCode = document.getElementById("series").value;
+        let seriesCode = document.getElementById("series").value;   
+        seriesCode = typeof seriesCode === "string" ? parseInt(seriesCode) : seriesCode;
         let productCode = document.getElementById("product").value;
+        productCode = typeof productCode === "string" ? parseInt(productCode) : productCode;
         let seriesPrefix = document.getElementById("seriesPrefix").value;
         let productPrefix = document.getElementById("productPrefix").value;
 
@@ -330,15 +337,15 @@ v1.0.02 | 2023-06-28
                     }
 
                     if(index === 0){    // row 가 시작일떄
-                        setCookie("oldSeries", seriesCode)
-                        setCookie("oldProduct", productCode)
+                        setLocalStorageValue("oldSeries", seriesCode)
+                        setLocalStorageValue("oldProduct", productCode)
 
                         contentNameText.innerHTML = "";
                         updateDocumentText("currStatusText","엑셀 파일 CONVERTING...");
                         contentCnt++;   // 처리하는 content 개수 + 1 (화면 노출 용)
                     }else if (excelRowCnt === index + 1){   // row 가 마지막일때
-                        setCookie("newSeries", seriesCode + 1)
-                        setCookie("newProduct", productCode + 1)
+                        setLocalStorageValue("newSeries", seriesCode + 1)
+                        setLocalStorageValue("newProduct", productCode + 1)
                         uploadCode++;       // 회차 번호 + 1
                         contentName =  `${item.제목명 } | ${uploadCode} 개`; // 처리중인 작품 명 개수 + 1
                         contentNames.push(contentName);  // 마지막 작품 일 경우 화면 노출 처리
@@ -353,7 +360,7 @@ v1.0.02 | 2023-06-28
                         uploadCode++;       // 회차 번호 + 1
                         contentName =  `${item.제목명 } | ${uploadCode} 개`; // 처리중인 작품 명 개수 + 1
                     }
-                    let textSeriesCode = seriesPrefix + lpad(`${seriesCode}`, 5 , "0");     // series_code : ANY00001 (뒤에 LPAD 처리된 시퀀스 5자리 수 숫자)
+                    let textSeriesCode = seriesPrefix + lpad(`${seriesCode}`, 5 , "0");     // series_code : ABC00001 (뒤에 LPAD 처리된 시퀀스 5자리 수 숫자)
                     let textUploadCode = lpad(`${uploadCode}` , 4 , "0")                    // upload_code : 00001 (뒤에 LPAD 처리된 시퀀스 4자리 수 숫자)
                     let textProductCode = productPrefix + lpad(`${productCode}` , 4 , "0") + textUploadCode;     // product_code : AA0001 + upload_code (16진수 두자리 + 뒤에 LPAD 처리된 시퀀스 4자리 수 숫자 + upload_code)
                     
